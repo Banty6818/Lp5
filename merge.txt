@@ -1,0 +1,80 @@
+#include <iostream>
+#include <omp.h>
+
+void merge(int arr[], int l, int m, int r) {
+    int n1 = m - l + 1;
+    int n2 = r - m;
+
+    int *L = new int[n1];
+    int *R = new int[n2];
+
+    for (int i = 0; i < n1; i++)
+        L[i] = arr[l + i];
+    for (int j = 0; j < n2; j++)
+        R[j] = arr[m + 1 + j];
+
+    int i = 0, j = 0, k = l;
+
+    while (i < n1 && j < n2)
+        arr[k++] = (L[i] <= R[j]) ? L[i++] : R[j++];
+
+    while (i < n1)
+        arr[k++] = L[i++];
+
+    while (j < n2)
+        arr[k++] = R[j++];
+
+    delete[] L;
+    delete[] R;
+}
+
+void parallelMergeSort(int arr[], int l, int r, int depth = 0) {
+    if (l < r) {
+        int m = l + (r - l) / 2;
+
+        // Limit parallelism depth to avoid too many threads
+        if (depth < 4) {
+#pragma omp parallel sections
+            {
+#pragma omp section
+                parallelMergeSort(arr, l, m, depth + 1);
+
+#pragma omp section
+                parallelMergeSort(arr, m + 1, r, depth + 1);
+            }
+        } else {
+            // Fallback to sequential recursion
+            parallelMergeSort(arr, l, m, depth + 1);
+            parallelMergeSort(arr, m + 1, r, depth + 1);
+        }
+
+        merge(arr, l, m, r);
+    }
+}
+
+void printArray(int arr[], int size) {
+    for (int i = 0; i < size; i++)
+        std::cout << arr[i] << " ";
+    std::cout << "\n";
+}
+
+int main() {
+    int n;
+    std::cout << "Enter number of elements: ";
+    std::cin >> n;
+
+    int *arr = new int[n];
+    std::cout << "Enter " << n << " elements:\n";
+
+    for (int i = 0; i < n; i++)
+        std::cin >> arr[i];
+
+    std::cout << "\nSorting using Parallel Merge Sort...\n\n";
+    parallelMergeSort(arr, 0, n - 1);
+
+    std::cout << "Sorted Array:\n";
+    printArray(arr, n);
+
+    delete[] arr;
+    return 0;
+}

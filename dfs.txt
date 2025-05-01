@@ -1,0 +1,65 @@
+// Parallel DFS implementation using OpenMP in C++
+#include <iostream>
+#include <vector>
+#include <omp.h>
+
+using namespace std;
+
+const int N = 6;                // number of nodes
+vector<vector<int>> graph(N);   // adjacency list for graph
+vector<bool> visited(N, false); // visited array
+
+// Parallel DFS function
+void parallelDFS(int node)
+{
+    bool alreadyVisited = false;
+
+    // Check and mark visited node in a critical section
+#pragma omp critical
+    {
+        if (visited[node])
+            alreadyVisited = true;
+        else
+        {
+            visited[node] = true;
+            cout << "Visited node: " << node << " by thread " << omp_get_thread_num() << endl;
+        }
+    }
+
+    if (alreadyVisited)
+        return;
+
+    // Traverse neighbors in parallel using tasks
+#pragma omp parallel for
+    for (int i = 0; i < graph[node].size(); i++)
+    {
+        int neighbor = graph[node][i];
+
+#pragma omp task
+        parallelDFS(neighbor);
+    }
+}
+
+int main()
+{
+    // Build the undirected graph
+    graph[0] = {1, 2};
+    graph[1] = {0, 3, 4};
+    graph[2] = {0, 4};
+    graph[3] = {1, 5};
+    graph[4] = {1, 2, 5};
+    graph[5] = {3, 4};
+
+    cout << "Parallel DFS Traversal starting from node 0:\n";
+
+    // Start parallel region and launch initial DFS as a single task
+#pragma omp parallel
+    {
+#pragma omp single
+        {
+            parallelDFS(0);
+        }
+    }
+
+    return 0;
+}
